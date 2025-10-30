@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' blob: data:;
+                 img-src 'self' blob: data:;
+                 media-src 'self' blob: data:;
+                 script-src 'self' https://cdn.jsdelivr.net;
+                 connect-src 'self';
+                 style-src 'self' 'unsafe-inline';
+                 frame-ancestors 'none';">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <style>
+      html,body { margin:0; background:#000; overflow:hidden; }
+      #video { transform: scaleX(-1); width:100vw; height:100vh; object-fit:cover; }
+      #canvas { position:absolute; inset:0; }
+    </style>
+  </head>
+  <body>
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+
+    <script>
+      let detector, video, ctx, canvas;
+      canvas = document.getElementById('canvas');
+      ctx = canvas.getContext('2d');
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.onresize = resize; resize();
+
+      async function initCamera() {
+        video = document.getElementById('video');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        video.srcObject = stream;
+        await new Promise(r => video.onloadedmetadata = r);
+        video.play();
+      }
+
+      function angle(a,b,c){
+        const ab = { x: a.x - b.x, y: a.y - b.y };
+        const cb = { x: c.x - b.x, y: c.y - b.y };
+        const dot = ab.x*cb.x + ab.y*cb.y;
+        const mag = Math.hypot(ab.x,ab.y) * Math.hypot(cb.x,cb.y);
+        const cos = Math.min(1, Math.max(-1, dot / (mag || 1)));
+        return Math.acos(cos) * 180 / Math.PI;
+      }
+
+      function draw(points){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = 'lime';
+        for (const p of points){
+          if (p.score > 0.5){
+            ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+          }
+        }
+      }
+
+      async function loop(){
+        const poses = await detector.estimatePoses(video, { flipHorizontal: true });
+        if (poses.length){
+          const kp = poses[0].keypoints;
+          const byName = Object.fromEntries(kp.map(k => [k.name, k]));
+          const LHip = byName['left_hip'], LKnee = byName['left_knee'], LAnkle = byName['left_ankle'];
+          if (LHip && LKnee && LAnkle){
+            const kneeDeg = Math.round(angle(LHip, LKnee, LAnkle));
+            // send live data to FlutterFlow
+            const msg = { type:'pose', leftKneeAngle: kneeDeg };
+            window.parent.postMessage(JSON.stringify(msg), '*');
+          }
+          draw(kp);
+        }
+        requestAnimationFrame(loop);
+      }
+
+      (async ()=>{
+        await initCamera();
+        detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
+        loop();
+      })();
+    </script>
+  </body>
+</html>
