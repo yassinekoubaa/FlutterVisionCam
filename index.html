@@ -81,8 +81,8 @@
           const LHip = byName['left_hip'], LKnee = byName['left_knee'], LAnkle = byName['left_ankle'];
           if (LHip && LKnee && LAnkle){
             const kneeDeg = Math.round(angle(LHip, LKnee, LAnkle));
-            // send live data to FlutterFlow
             sendToFlutter({ type:'pose', leftKneeAngle: kneeDeg });
+            console.log('POSE_FRAME', kneeDeg);
           }
           draw(kp);
         }
