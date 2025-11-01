@@ -6,7 +6,7 @@
         content="default-src 'self' blob: data:;
                  img-src 'self' blob: data:;
                  media-src 'self' blob: data:;
-                 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+                 script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'nonce-pose123' https://cdn.jsdelivr.net;
                  connect-src 'self' https://cdn.jsdelivr.net;
                  style-src 'self' 'unsafe-inline';">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
@@ -22,7 +22,7 @@
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
 
-    <script>
+    <script nonce="pose123">
       let detector, video, ctx, canvas;
       canvas = document.getElementById('canvas');
       ctx = canvas.getContext('2d');
